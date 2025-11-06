@@ -12,7 +12,10 @@ app.use(cors());
 app.get("/api/restaurants", async (req, res) => {
   try {
     const query = req.query.query || "맛집";
-    const url = `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(query)}&display=10`;
+    // ✅ display 값을 20으로 확장 (최대 30까지 가능)
+    const url = `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(query)}&display=30&sort=random`;
+    console.log("📡 Requesting URL:", url);
+
 
     const response = await fetch(url, {
       headers: {
@@ -21,20 +24,24 @@ app.get("/api/restaurants", async (req, res) => {
       },
     });
 
-    const text = await response.text();
+    const data = await response.json();
 
-    try {
-      const data = JSON.parse(text);
-      res.json(data);
-    } catch (jsonErr) {
-      console.error("❌ JSON parse error from NAVER:", text);
-      res.status(500).json({ error: "NAVER API returned invalid JSON", raw: text });
-    }
+    console.log("🧩 Naver Response:", data.display, data.items.length);
 
+    // link 보정 (상대주소일 경우)
+    data.items = data.items.map(item => ({
+      ...item,
+      link: item.link.startsWith("http")
+        ? item.link
+        : `https://search.naver.com${item.link}`,
+    }));
+
+    res.json(data);
   } catch (err) {
-    console.error("❌ Server internal error:", err);
+    console.error(err);
     res.status(500).json({ error: "Server internal error" });
   }
 });
+
 
 app.listen(3001, () => console.log("✅ Server running on http://localhost:3001"));
